@@ -1,0 +1,33 @@
+{
+  "name": "经典紫砂壶（壶盖已合拢）",
+  "source": "茶壶.glb",
+  "vertices": 44468,
+  "faces": 88940,
+  "bounds": [
+    [
+      -37.366,
+      0.0,
+      -29.991
+    ],
+    [
+      32.689,
+      47.559,
+      29.991
+    ]
+  ],
+  "extents": [
+    70.055,
+    47.559,
+    59.981
+  ],
+  "up_axis": "Y",
+  "base_y": 0.0,
+  "uv": "absent (decals are used)",
+  "normals": "generated, outward",
+  "lid_fix": {
+    "radial_scale": 1.0153,
+    "vertical_shift": 10.99757,
+    "seated_overlap": 0.25
+  },
+  "orientation": "spout -X (left), handle +X (right), front +Z"
+}
