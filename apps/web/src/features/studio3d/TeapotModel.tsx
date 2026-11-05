@@ -5,12 +5,14 @@ import { useStudioStore } from '../../store/studioStore';
 import { assetUrl } from '../../lib/assetUrl';
 import { InscriptionDecal, OrnamentDecal } from './Decals';
 import { ClayMaterial } from './ClayMaterial';
+import { getClayMaterial } from '../../data/materials';
 
 const MODEL_URL = assetUrl('/assets/models/teapot.glb');
 
-export function TeapotModel() {
+export function TeapotModel({ mobile = false }: { mobile?: boolean }) {
   const gltf = useGLTF(MODEL_URL);
   const materialId = useStudioStore((state) => state.design.materialId);
+  const clay = getClayMaterial(materialId);
 
   const geometry = useMemo(() => {
     let found: THREE.BufferGeometry | null = null;
@@ -35,7 +37,11 @@ export function TeapotModel() {
   return (
     <group>
       <mesh geometry={geometry} castShadow receiveShadow>
-        <ClayMaterial materialId={materialId} />
+        {mobile ? (
+          <meshStandardMaterial color={clay.color} roughness={clay.roughness} />
+        ) : (
+          <ClayMaterial materialId={materialId} />
+        )}
       </mesh>
       <InscriptionDecal geometry={geometry} height={height} />
       <OrnamentDecal geometry={geometry} height={height} />

@@ -1,19 +1,16 @@
-﻿import { Suspense, useEffect, useRef, useState } from 'react';
+﻿import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { AdaptiveDpr, AdaptiveEvents, ContactShadows, OrbitControls } from '@react-three/drei';
-import {
-  Bloom,
-  EffectComposer,
-  N8AO,
-  Vignette,
-} from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useStudioStore } from '../../store/studioStore';
+import { assetUrl } from '../../lib/assetUrl';
 import { TeapotModel } from './TeapotModel';
 import { StudioBackdrop } from './StudioBackdrop';
 import { StudioLighting } from './StudioLighting';
+
+const DesktopEffects = lazy(() => import('./DesktopEffects'));
 
 export type ViewPreset = 'front' | 'side' | 'back' | 'reset';
 
@@ -115,28 +112,63 @@ function StaticShadows() {
 }
 
 function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 1023px)').matches,
+  );
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 1023px)');
     const update = () => setIsMobile(query.matches);
     update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
+    if (typeof query.addEventListener === 'function') {
+      query.addEventListener('change', update);
+      return () => query.removeEventListener('change', update);
+    }
+    query.addListener(update);
+    return () => query.removeListener(update);
   }, []);
 
   return isMobile;
 }
 
+function ContextLossListener({ onLost }: { onLost: () => void }) {
+  const canvas = useThree((state) => state.gl.domElement);
+  useEffect(() => {
+    canvas.addEventListener('webglcontextlost', onLost);
+    return () => canvas.removeEventListener('webglcontextlost', onLost);
+  }, [canvas, onLost]);
+  return null;
+}
+
 export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
   const autoRotate = useStudioStore((state) => state.autoRotate);
   const isMobile = useIsMobile();
+  const [showPhoto, setShowPhoto] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const photo = (
+    <div className="absolute inset-0 z-30 bg-[#34271e]">
+      <img className="h-full w-full object-contain" src={assetUrl('/assets/products/teapot-cover.webp')} alt="紫砂壶款式参考图" />
+      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 bg-black/70 px-3 py-2 text-xs text-white">
+        <p>当前显示款式参考图。可继续编辑，图片不会随定制实时更新。</p>
+        <button type="button" className="rounded-full border border-white/40 px-3 py-1.5" onClick={() => {
+          setAttempt((value) => value + 1);
+          setShowPhoto(false);
+        }}>
+          重试 3D
+        </button>
+      </div>
+    </div>
+  );
+  if (showPhoto) return photo;
 
   return (
-    <ErrorBoundary fallbackTitle="3D 器物暂时未加载">
+    <ErrorBoundary key={attempt} fallback={photo}>
       <Canvas
-        shadows
-        dpr={[1, isMobile ? 1.5 : 1.75]}
+        fallback={photo}
+        shadows={!isMobile}
+        dpr={[1, isMobile ? 1.25 : 1.75]}
         camera={{
           fov: 32,
           near: 0.5,
@@ -148,10 +180,10 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
           ],
         }}
         gl={{
-          antialias: true,
+          antialias: !isMobile,
           alpha: false,
           preserveDrawingBuffer: true,
-          powerPreference: 'high-performance',
+          powerPreference: isMobile ? 'default' : 'high-performance',
         }}
         onCreated={({ gl, camera }) => {
           gl.toneMapping = THREE.ACESFilmicToneMapping;
@@ -162,14 +194,15 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
         }}
         style={{ touchAction: 'none' }}
       >
-        <StudioEnvironment />
+        <ContextLossListener onLost={() => setShowPhoto(true)} />
+        {!isMobile ? <StudioEnvironment /> : null}
         <StudioBackdrop />
-        <StaticShadows />
-        <StudioLighting />
+        {!isMobile ? <StaticShadows /> : null}
+        <StudioLighting mobile={isMobile} />
 
         <Suspense fallback={null}>
-          <TeapotModel />
-          <ContactShadows
+          <TeapotModel mobile={isMobile} />
+          {!isMobile ? <ContactShadows
             position={[0, 0.02, 0]}
             opacity={0.8}
             scale={170}
@@ -178,7 +211,7 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
             resolution={1024}
             color="#2b1d15"
             frames={1}
-          />
+          /> : null}
         </Suspense>
 
         <OrbitControls
@@ -200,24 +233,11 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
         <AdaptiveDpr />
         <AdaptiveEvents />
 
-        <EffectComposer multisampling={isMobile ? 0 : 2}>
-          <N8AO
-            aoRadius={9}
-            distanceFalloff={1.1}
-            intensity={2.1}
-            quality={isMobile ? 'low' : 'medium'}
-            halfRes
-            depthAwareUpsampling
-            color="#3e2c20"
-          />
-          <Bloom
-            intensity={isMobile ? 0.05 : 0.1}
-            luminanceThreshold={1.05}
-            luminanceSmoothing={0.45}
-            mipmapBlur
-          />
-          <Vignette offset={0.24} darkness={0.32} />
-        </EffectComposer>
+        {!isMobile ? (
+          <Suspense fallback={null}>
+            <DesktopEffects />
+          </Suspense>
+        ) : null}
       </Canvas>
     </ErrorBoundary>
   );

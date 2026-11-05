@@ -5,6 +5,7 @@ import { Button } from './ui/Button';
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallbackTitle?: string;
+  fallback?: ReactNode;
   onReset?: () => void;
 }
 
@@ -31,6 +32,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (!this.state.hasError) return this.props.children;
+    if (this.props.fallback !== undefined) return this.props.fallback;
 
     return (
       <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-4 rounded-2xl border border-line bg-surface/80 p-8 text-center">

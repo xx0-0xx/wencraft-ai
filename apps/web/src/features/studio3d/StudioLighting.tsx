@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 
-RectAreaLightUniformsLib.init();
-
 interface SoftboxProps {
   position: [number, number, number];
   width: number;
@@ -33,12 +31,24 @@ function Softbox({ position, width, height, intensity, color }: SoftboxProps) {
   );
 }
 
-export function StudioLighting() {
+export function StudioLighting({ mobile = false }: { mobile?: boolean }) {
+  useEffect(() => {
+    if (!mobile) RectAreaLightUniformsLib.init();
+  }, [mobile]);
   const shadowTarget = useMemo(() => {
     const target = new THREE.Object3D();
     target.position.set(0, 24, 0);
     return target;
   }, []);
+  if (mobile) {
+    return (
+      <>
+        <hemisphereLight args={['#fff3e6', '#79604d', 1.45]} />
+        <directionalLight position={[-90, 120, 80]} color="#fff0dc" intensity={2.5} />
+        <directionalLight position={[35, 65, -95]} color="#ffd9a5" intensity={1} />
+      </>
+    );
+  }
 
   return (
     <>
