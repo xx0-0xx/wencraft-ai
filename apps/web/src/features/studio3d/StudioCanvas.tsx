@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { useStudioStore } from '../../store/studioStore';
-import { assetUrl } from '../../lib/assetUrl';
+import { StagePreview } from './components/StagePreview';
 import { TeapotModel } from './TeapotModel';
 import { StudioBackdrop } from './StudioBackdrop';
 import { StudioLighting } from './StudioLighting';
@@ -142,25 +142,36 @@ function ContextLossListener({ onLost }: { onLost: () => void }) {
   return null;
 }
 
-export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
+function FirstModelFrame({ onReady }: { onReady: (ready: boolean) => void }) {
+  const frame = useRef<number | null>(null);
+  useFrame(() => {
+    if (frame.current === null) {
+      frame.current = requestAnimationFrame(() => onReady(true));
+    }
+  });
+  useEffect(() => () => {
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
+  }, []);
+  return null;
+}
+
+export function StudioCanvas({ viewCommand, ready, onReadyChange }: {
+  viewCommand: ViewCommand;
+  ready: boolean;
+  onReadyChange: (ready: boolean) => void;
+}) {
   const autoRotate = useStudioStore((state) => state.autoRotate);
   const isMobile = useIsMobile();
   const [showPhoto, setShowPhoto] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const photo = (
-    <div className="absolute inset-0 z-30 bg-[#34271e]">
-      <img className="h-full w-full object-contain" src={assetUrl('/assets/products/teapot-cover.webp')} alt="紫砂壶款式参考图" />
-      <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-center justify-between gap-2 bg-black/70 px-3 py-2 text-xs text-white">
-        <p>当前显示款式参考图。可继续编辑，图片不会随定制实时更新。</p>
-        <button type="button" className="rounded-full border border-white/40 px-3 py-1.5" onClick={() => {
-          setAttempt((value) => value + 1);
-          setShowPhoto(false);
-        }}>
-          重试 3D
-        </button>
-      </div>
-    </div>
-  );
+  const photo = <StagePreview onRetry={() => {
+    onReadyChange(false);
+    setAttempt((value) => value + 1);
+    setShowPhoto(false);
+  }} />;
   if (showPhoto) return photo;
 
   return (
@@ -194,7 +205,10 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
         }}
         style={{ touchAction: 'none' }}
       >
-        <ContextLossListener onLost={() => setShowPhoto(true)} />
+        <ContextLossListener onLost={() => {
+          onReadyChange(false);
+          setShowPhoto(true);
+        }} />
         {!isMobile ? <StudioEnvironment /> : null}
         <StudioBackdrop />
         {!isMobile ? <StaticShadows /> : null}
@@ -202,6 +216,7 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
 
         <Suspense fallback={null}>
           <TeapotModel mobile={isMobile} />
+          <FirstModelFrame onReady={onReadyChange} />
           {!isMobile ? <ContactShadows
             position={[0, 0.02, 0]}
             opacity={0.8}
@@ -239,6 +254,7 @@ export function StudioCanvas({ viewCommand }: { viewCommand: ViewCommand }) {
           </Suspense>
         ) : null}
       </Canvas>
+      {!ready && <StagePreview />}
     </ErrorBoundary>
   );
 }

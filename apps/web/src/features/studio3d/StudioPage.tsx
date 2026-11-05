@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowRight, Save } from 'lucide-react';
 import { useStudioStore } from '../../store/studioStore';
 import { getClayMaterial } from '../../data/materials';
 import { getOrnament } from '../../data/ornaments';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
-import { StudioCanvas, type ViewPreset } from './StudioCanvas';
+import type { ViewPreset } from './StudioCanvas';
 import { StudioHeader } from './components/StudioHeader';
 import { ToolTabs, type ToolTab } from './components/ToolTabs';
 import { MaterialPanel } from './components/MaterialPanel';
@@ -14,8 +14,11 @@ import { OrnamentPanel } from './components/OrnamentPanel';
 import { PackagingPanel } from './components/PackagingPanel';
 import { DesignInfoPanel } from './components/DesignInfoPanel';
 import { StageOverlay } from './components/StageOverlay';
-import { StageLoader } from './components/StageLoader';
+import { StagePreview } from './components/StagePreview';
+import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { ConfirmDialog, type ConfirmationSnapshot } from './components/ConfirmDialog';
+
+const StudioCanvas = lazy(() => import('./StudioCanvas').then(({ StudioCanvas }) => ({ default: StudioCanvas })));
 
 function ActivePanel({ tab }: { tab: ToolTab }) {
   const content =
@@ -38,6 +41,7 @@ function ActivePanel({ tab }: { tab: ToolTab }) {
 
 export default function StudioPage() {
   const [activeTab, setActiveTab] = useState<ToolTab>('material');
+  const [stageReady, setStageReady] = useState(false);
   const [viewCommand, setViewCommand] = useState<{ preset: ViewPreset; nonce: number }>({
     preset: 'front',
     nonce: 0,
@@ -179,15 +183,18 @@ export default function StudioPage() {
           <section className="flex min-w-0 flex-col gap-3 lg:h-full">
             <div className="relative h-[46vh] min-h-[320px] max-h-[560px] overflow-hidden rounded-2xl border border-line/80 bg-[#34271e] shadow-soft sm:h-[52vh] lg:h-auto lg:min-h-0 lg:max-h-none lg:flex-1">
               <div className="absolute inset-0">
-                <StudioCanvas viewCommand={viewCommand} />
+                <ErrorBoundary fallback={<StagePreview onRetry={() => window.location.reload()} />}>
+                  <Suspense fallback={<StagePreview />}>
+                    <StudioCanvas viewCommand={viewCommand} ready={stageReady} onReadyChange={setStageReady} />
+                  </Suspense>
+                </ErrorBoundary>
               </div>
-              <StageOverlay
+              {stageReady && <StageOverlay
                 autoRotate={autoRotate}
                 onToggleAutoRotate={() => setAutoRotate(!autoRotate)}
                 onScreenshot={handleScreenshot}
                 onView={handleView}
-              />
-              <StageLoader />
+              />}
               <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/25" />
             </div>
 
