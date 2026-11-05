@@ -1,0 +1,20 @@
+{
+  "name": "wencraft-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "器物有言 WenCraft AI — AI 文创定制平台概念演示",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @wencraft/web",
+    "build": "npm run build -w @wencraft/web",
+    "typecheck": "npm run typecheck -w @wencraft/web",
+    "preview": "npm run preview -w @wencraft/web",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.1"
+  }
+}
